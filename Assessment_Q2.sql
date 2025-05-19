@@ -1,6 +1,9 @@
 -- Assessment_Q2.sql
 -- Question 2: Transaction Frequency Analysis
+-- Objective: Categorize customers by monthly transaction frequency
 
+
+-- Step 1: Count number of transactions per customer per month
 WITH monthly_tx_per_customer AS (
     SELECT 
         owner_id,
@@ -10,6 +13,7 @@ WITH monthly_tx_per_customer AS (
     GROUP BY owner_id, DATE_FORMAT(transaction_date, '%Y-%m')
 ),
 
+-- Step 2: Calculate average monthly transactions per customer
 avg_tx_per_customer AS (
     SELECT 
         owner_id,
@@ -18,6 +22,7 @@ avg_tx_per_customer AS (
     GROUP BY owner_id
 ),
 
+-- Step 3: Classify customers into frequency categories
 categorized_customers AS (
     SELECT 
         owner_id,
@@ -30,6 +35,7 @@ categorized_customers AS (
     FROM avg_tx_per_customer
 )
 
+-- Step 4: Aggregate results by frequency category
 SELECT 
     frequency_category,
     COUNT(*) AS customer_count,
