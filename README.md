@@ -1,79 +1,116 @@
-## Question 1: High-Value Customers with Multiple Products
+# Data Analytics SQL Assessment
+
+This repository contains solutions to a SQL assessment designed to evaluate my ability to query relational databases, perform aggregations, subqueries, filtering, and business logic transformations. The task was based on a schema that includes:
+
+- `users_customuser`: Customer demographic and signup data
+- `savings_savingsaccount`: Deposit transaction records
+- `plans_plan`: Details of savings and investment plans
+- `withdrawals_withdrawal`: Withdrawal transaction records
+
+Each question's solution is provided as a `.sql` file, and sample results are accessible via shared Google Sheets for easy verification.
+
+---
+
+## 📊 Question 1: High-Value Customers with Multiple Products
 
 **Objective**  
-Identify customers who have at least one funded savings plan (`is_regular_savings = 1`) and at least one funded investment plan (`is_a_fund = 1`), using deposit transactions as a funding indicator.
+Identify customers with at least one funded savings plan and one funded investment plan, and rank them by total deposit value.
 
 **Approach**  
-I joined `savings_savingsaccount` with `plans_plan` using `plan_id` to access plan types, and with `users_customuser` using `owner_id` to retrieve customer information. I filtered for records with `confirmed_amount > 0` (funded plans) and grouped the results by customer.
+- Joined `savings_savingsaccount` with `plans_plan` and `users_customuser`.
+- Filtered only funded plans (`confirmed_amount > 0`).
+- Counted distinct savings and investment plan IDs per customer.
+- Calculated total deposits in naira (from kobo).
 
-To get the customer's full name, I concatenated `first_name` and `last_name` using `CONCAT_WS`. Distinct plan IDs were counted separately for savings and investment plans. The `confirmed_amount` was aggregated and converted from kobo to naira by dividing by 100.
+**Challenge**  
+The `name` column in the users table was often null, so I used `CONCAT_WS(first_name, last_name)`.
 
-**Key SQL Techniques Used**  
-- `CASE WHEN` within `COUNT(DISTINCT ...)` for conditional aggregation  
-- `HAVING` clause to ensure presence of both product types  
-- Use of `ROUND()` and monetary conversion  
-- Use of `CONCAT_WS()` to construct full names when `name` is null
+**Sample Output**
 
-**Challenges**  
-The `name` column was null for all records, so I constructed the customer name using `first_name` and `last_name`. Ensuring accurate counts of distinct plan IDs for each type was also critical.
+| Owner ID | Name            | Savings | Investments | Total Deposits (₦) |
+|----------|------------------|---------|-------------|---------------------|
+| 1909df3e | Chima Ataman     | 2       | 8           | ₦890,312,200.00     |
+| 5572810f | Obi David        | 82      | 45          | ₦389,632,600.00     |
 
+**📎 [View full output](https://docs.google.com/spreadsheets/d/1oFtV2Y2KdefCac8WJucZh7DpLsneG2ut22ik01w5iKs/edit?usp=sharing)**
 
-## Question 2: Transaction Frequency Analysis
+---
+
+## 📊 Question 2: Transaction Frequency Analysis
 
 **Objective**  
-To segment customers by how frequently they transact each month, using deposit records in `savings_savingsaccount`.
+Segment customers based on how frequently they transact per month:
+- High (≥10/month)
+- Medium (3–9/month)
+- Low (≤2/month)
 
 **Approach**  
-- First, I grouped transactions by customer and by month (`%Y-%m`) to calculate the number of transactions each month.
-- Then, I computed the average monthly transaction rate per customer by dividing total monthly transactions by the number of distinct months.
-- Based on the average, each customer was classified into:
-  - **High Frequency** (≥10/month)
-  - **Medium Frequency** (3–9/month)
-  - **Low Frequency** (≤2/month)
-- Finally, I aggregated these categories to get the number of customers and their average monthly transaction volume.
+- Grouped transactions by customer and month using `DATE_FORMAT`.
+- Calculated average monthly transaction rate per customer.
+- Categorized customers with a `CASE` statement.
 
-**Key SQL Techniques Used**  
-- Common Table Expressions (CTEs)
-- `DATE_FORMAT()` for monthly grouping
-- `CASE WHEN` for frequency labeling
-- `ROUND()` for clean formatting
-- `FIELD()` to maintain a custom order of categories
+**Challenge**  
+Accurately computing average frequency across multiple months and correctly grouping customers.
 
-**Challenges**  
-Ensuring time-aware aggregation meant properly grouping transactions by month before computing averages. This avoided inflating transaction counts for customers with long histories but low activity.
+**Sample Output**
 
+| Frequency Category | Customer Count | Avg Tx/Month |
+|--------------------|----------------|--------------|
+| High Frequency     | 141            | 44.72        |
+| Medium Frequency   | 181            | 4.66         |
+| Low Frequency      | 551            | 1.33         |
 
-## Question 3: Account Inactivity Alert
+**📎 [View full output](https://docs.google.com/spreadsheets/d/1HaVbzbTq0scQvwq4ZjeOsiHSUQdqvsiGJe4F6zJOdGE/edit?usp=sharing)**
+
+---
+
+## 📊 Question 3: Account Inactivity Alert
 
 **Objective**  
-To identify all active savings and investment plans that have had no confirmed deposit transactions in the last 365 days.
+Flag active accounts with no deposit inflows in the past 365 days.
 
 **Approach**  
-1. Queried the `savings_savingsaccount` table to get the most recent `transaction_date` per plan with confirmed inflows.
-2. Joined the result with the `plans_plan` table to get the plan type and owner.
-3. Filtered for plans of type Savings (`is_regular_savings = 1`) or Investment (`is_a_fund = 1`).
-4. Calculated the inactivity period using `DATEDIFF(NOW(), last_transaction_date)` and kept only those with more than 365 days of inactivity.
+- Selected max transaction date per plan (`MAX(transaction_date)`).
+- Filtered plans inactive for over 1 year.
+- Classified plan types using flags `is_regular_savings` and `is_a_fund`.
 
-**Key SQL Techniques Used**  
-- `MAX()` for last transaction
-- `DATEDIFF()` for calculating inactivity in days
-- `CASE` to classify plan type
+**Challenge**  
+Handling plans with multiple transactions and accurately calculating inactivity using `DATEDIFF`.
 
-**Challenges**  
-Care was taken to ensure only funded plans were included by filtering on `confirmed_amount > 0`. We interpreted “active” as being of relevant type (not archived or deleted), but additional plan flags like `is_archived` could be added for stricter logic if needed.
+**Sample Output**
 
+| Plan ID         | Owner ID        | Type      | Last Tx Date        | Inactivity Days |
+|------------------|------------------|-----------|----------------------|-----------------|
+| ba6cda07...      | 0257625a...      | Savings   | 2016-09-18 19:07:14  | 3165            |
+| c4f47b82...      | 0257625a...      | Savings   | 2016-10-08 15:03:45  | 3145            |
 
+**📎 [View full output](https://docs.google.com/spreadsheets/d/1U50oCq-pocqK6nLhODVPZkTUP9GhTdfByQhuBbGLRaQ/edit?usp=sharing)**
 
-## Question 4: Customer Lifetime Value (CLV) Estimation
+---
+
+## 📊 Question 4: Customer Lifetime Value (CLV) Estimation
 
 **Objective**  
-Estimate the Customer Lifetime Value (CLV) for each user based on their transaction volume and account tenure.
+Estimate CLV using a simplified model based on tenure and transaction volume.
+
+**Formula**  
+CLV = (total_transactions / tenure_months) * 12 * avg_profit_per_transaction
 
 **Approach**  
-1. From `savings_savingsaccount`, I calculated:
-   - Total number of confirmed transactions per customer
-   - Average profit per transaction (0.1% of transaction value)
-2. From `users_customuser`, I calculated account tenure in months using `TIMESTAMPDIFF(MONTH, date_joined, NOW())`.
-3. The CLV was computed using the formula:
+- Tenure = months since signup (`TIMESTAMPDIFF`).
+- Profit = 0.1% of transaction value.
+- Grouped by customer, calculated averages and applied formula.
 
+**Challenge**  
+Avoiding divide-by-zero for new customers with tenure of 0 months.
 
+**Sample Output**
+
+| Customer ID | Name              | Tenure (Months) | Total Tx | Estimated CLV (₦) |
+|-------------|-------------------|------------------|----------|-------------------|
+| 1909df3e... | Chima Ataman      | 33               | 1254     | ₦323,750.88       |
+| 3097d111... | Obi Obi           | 25               | 583      | ₦103,778.66       |
+
+**📎 [View full output](https://docs.google.com/spreadsheets/d/17kf1ODK4yAAjPRKw4Cpaid3NaYfe1cU4DQY4xmNZYOw/edit?usp=sharing)**
+
+---
